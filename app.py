@@ -45,6 +45,7 @@ st.markdown("""
         justify-content: center;
         align-items: center;
         text-align: center;
+        width: 100%;
     }
     
     .winner-label {
@@ -62,11 +63,12 @@ st.markdown("""
         font-weight: 900;
         text-transform: uppercase;
         margin: 10px 0;
-        line-height: 1;
+        line-height: 1.1;
+        word-break: break-word;
     }
 
     .lot-card {
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 20px;
         background: #f8fafc;
@@ -74,6 +76,7 @@ st.markdown("""
         border-radius: 1.25rem;
         border: 2px solid #f1f5f9;
         margin-top: 30px;
+        text-align: left;
     }
     
     .lot-img {
@@ -82,6 +85,17 @@ st.markdown("""
         border-radius: 12px;
         object-fit: cover;
         box-shadow: 0 2px 4px rgb(0 0 0 / 0.1);
+    }
+
+    .status-badge {
+        background:#f1f5f9; 
+        padding:5px 15px; 
+        border-radius:20px; 
+        font-size:0.7rem; 
+        font-weight:800; 
+        color:#64748b;
+        margin-bottom: 20px;
+        display: inline-block;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -109,7 +123,7 @@ with col_config:
         source = st.radio("Source d'import", ["Manuel", "Fichier", "Instagram"], horizontal=True)
         
         if source == "Manuel":
-            text_area = st.text_area("Saisissez les noms", height=100)
+            text_area = st.text_area("Saisissez les noms (un par ligne)", height=100)
             if st.button("Valider"):
                 st.session_state.participants = [n.strip() for n in text_area.split('\n') if n.strip()]
         elif source == "Fichier":
@@ -118,46 +132,49 @@ with col_config:
                 st.session_state.participants = [n.strip() for n in file.read().decode().split('\n') if n.strip()]
         else:
             if st.button("Simuler Instagram"):
-                st.session_state.participants = ["@user1", "@user2", "@user3", "@user4", "@user5"]
+                st.session_state.participants = ["@user1", "@user2", "@user3", "@user4", "@user5", "@lucky_dev", "@stream_fan"]
 
         if st.session_state.participants:
-            st.success(f"{len(st.session_state.participants)} participants")
+            st.success(f"{len(st.session_state.participants)} participants chargés")
             if st.button("Reset", type="secondary"):
                 st.session_state.participants = []
                 st.session_state.winner = None
                 st.rerun()
 
 with col_canvas:
-    # On définit l'image en base64 une seule fois pour tout le script
+    # Préparation de l'image
     b64_img = ""
     if uploaded_image:
         b64_img = base64.b64encode(uploaded_image.getvalue()).decode()
 
-    # Conteneur vide pour la zone de capture
+    # Zone de capture
     capture_placeholder = st.empty()
 
     if not st.session_state.winner:
         with capture_placeholder.container():
-            st.markdown('<div class="capture-container">', unsafe_allow_html=True)
-            st.markdown(f"<div style='margin-bottom: 20px;'><span style='background:#f1f5f9; padding:5px 15px; border-radius:20px; font-size:0.7rem; font-weight:800; color:#64748b;'>CONCOURS : {lot_name.upper()}</span></div>", unsafe_allow_html=True)
+            # Tout le HTML est contenu dans un seul bloc markdown pour éviter les bugs de balises
+            content_html = f"""
+            <div class="capture-container">
+                <div class="status-badge">CONCOURS : {lot_name.upper()}</div>
+                <div style="margin-bottom: 20px;">
+                    {f'<img src="data:image/png;base64,{b64_img}" style="width:140px; height:140px; border-radius:30px; object-fit:cover; border:5px solid #f8fafc; box-shadow:0 10px 15px rgba(0,0,0,0.1);">' if b64_img else '<h1 style="font-size:4rem;">🎁</h1>'}
+                </div>
+                <p style='color:#cbd5e1; font-weight:800; letter-spacing:0.1em; margin-bottom: 30px;'>PRÊT POUR LE TIRAGE</p>
+            </div>
+            """
+            st.markdown(content_html, unsafe_allow_html=True)
             
-            if b64_img:
-                st.markdown(f'<img src="data:image/png;base64,{b64_img}" style="width:140px; height:140px; border-radius:30px; object-fit:cover; margin-bottom:20px; border:5px solid #f8fafc; box-shadow:0 10px 15px rgba(0,0,0,0.1);">', unsafe_allow_html=True)
-            else:
-                st.markdown("<h1 style='font-size:4rem;'>🎁</h1>", unsafe_allow_html=True)
-            
-            st.markdown("<p style='color:#cbd5e1; font-weight:800; letter-spacing:0.1em;'>PRÊT POUR LE TIRAGE</p>", unsafe_allow_html=True)
-            
+            # Le bouton est placé juste en dessous de la zone blanche pour ne pas polluer la capture
             if len(st.session_state.participants) >= 2:
-                if st.button("🎯 LANCER LE TIRAGE"):
-                    # Animation manuelle
-                    for _ in range(20):
+                if st.button("🎯 LANCER LE TIRAGE AU SORT"):
+                    # Animation
+                    for _ in range(25):
                         temp_name = random.choice(st.session_state.participants)
-                        # On réécrit tout le HTML pour l'animation pour garder le style
                         capture_placeholder.markdown(f"""
                             <div class="capture-container">
-                                <div style='height:140px;'></div>
-                                <h2 style='color:#4f46e5; font-size:4rem; font-weight:900;'>{temp_name}</h2>
+                                <div class="status-badge">TIRAGE EN COURS...</div>
+                                <div style='height:100px;'></div>
+                                <div class="winner-name" style="color:#4f46e5;">{temp_name}</div>
                                 <div style='height:100px;'></div>
                             </div>
                         """, unsafe_allow_html=True)
@@ -165,30 +182,34 @@ with col_canvas:
                     
                     st.session_state.winner = random.choice(st.session_state.participants)
                     st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        # Résultat Final
-        with capture_placeholder.container():
-            img_tag = f'<img src="data:image/png;base64,{b64_img}" class="lot-img">' if b64_img else ""
-            
-            st.markdown(f"""
-                <div class="capture-container">
-                    <div style='margin-bottom: 20px;'><span style='background:#f1f5f9; padding:5px 15px; border-radius:20px; font-size:0.7rem; font-weight:800; color:#64748b;'>CONCOURS : {lot_name.upper()}</span></div>
-                    <p class="winner-label">Le gagnant est</p>
-                    <div class="winner-name">{st.session_state.winner}</div>
-                    
-                    <div class="lot-card">
-                        {img_tag}
-                        <div style="text-align:left;">
-                            <p style="font-size:0.6rem; font-weight:900; color:#64748b; text-transform:uppercase; margin:0;">Prix remporté</p>
-                            <p style="font-size:1.2rem; font-weight:800; color:#334155; margin:0;">{lot_name}</p>
-                        </div>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button("🔄 NOUVEAU TIRAGE", type="secondary"):
-                st.session_state.winner = None
-                st.rerun()
+            else:
+                st.info("Veuillez ajouter au moins 2 participants pour commencer.")
 
-st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 0.75rem; margin-top: 30px;'>ASTUCE : Cadrez votre capture sur le rectangle blanc.</p>", unsafe_allow_html=True)
+    else:
+        # Affichage du Résultat Final dans un seul bloc HTML propre
+        img_tag = f'<img src="data:image/png;base64,{b64_img}" class="lot-img">' if b64_img else ""
+        
+        result_html = f"""
+        <div class="capture-container">
+            <div class="status-badge">CONCOURS : {lot_name.upper()}</div>
+            <p class="winner-label">Le gagnant est</p>
+            <div class="winner-name">{st.session_state.winner}</div>
+            
+            <div class="lot-card">
+                {img_tag}
+                <div>
+                    <p style="font-size:0.65rem; font-weight:900; color:#64748b; text-transform:uppercase; margin:0;">Prix remporté</p>
+                    <p style="font-size:1.2rem; font-weight:800; color:#334155; margin:0;">{lot_name}</p>
+                </div>
+            </div>
+        </div>
+        """
+        st.markdown(result_html, unsafe_allow_html=True)
+        
+        # Bouton recommencer à l'extérieur de la zone blanche
+        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+        if st.button("🔄 REFAIRE UN TIRAGE", type="secondary"):
+            st.session_state.winner = None
+            st.rerun()
+
+st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 0.75rem; margin-top: 30px; font-weight: 600;'>ASTUCE : Cadrez votre logiciel de capture uniquement sur la zone blanche.</p>", unsafe_allow_html=True)
